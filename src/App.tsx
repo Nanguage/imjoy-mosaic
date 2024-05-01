@@ -10,6 +10,7 @@ import '@blueprintjs/icons/lib/css/blueprint-icons.css';
 import 'react-mosaic-component/styles/index.less';
 import './carbon.less';
 import './app.less';
+import { Window } from './Window';
 
 import {
   Corner,
@@ -19,45 +20,40 @@ import {
   getOtherDirection,
   getPathToCorner,
   Mosaic,
-  MosaicBranch,
   MosaicDirection,
   MosaicNode,
   MosaicParent,
-  MosaicWindow,
   MosaicZeroState,
   updateTree,
 } from 'react-mosaic-component';
 
 
 export const THEMES = {
-  ['Blueprint']: 'mosaic-blueprint-theme',
-  ['Blueprint Dark']: classNames('mosaic-blueprint-theme', Classes.DARK),
-  ['None']: '',
+  ['Light']: 'mosaic-blueprint-theme',
+  ['Dark']: classNames('mosaic-blueprint-theme', Classes.DARK),
 };
 
-export type Theme = keyof typeof THEMES;
+
+type Theme = keyof typeof THEMES;
 
 
-export interface ExampleAppState {
+type NewWindowPosition = "right" | "topRight"
+
+
+interface AppState {
   currentNode: MosaicNode<number> | null;
   currentTheme: Theme;
-  imjoy: any;
+  imjoy: object | null;
+  idCounter: number;
 }
 
-export class App extends React.PureComponent<{}, ExampleAppState> {
-  state: ExampleAppState = {
-    currentNode: {
-      direction: 'row',
-      first: 1,
-      second: {
-        direction: 'column',
-        first: 2,
-        second: 3,
-      },
-      splitPercentage: 40,
-    },
-    currentTheme: 'Blueprint',
-    imjoy: null
+
+export class App extends React.PureComponent<object, AppState> {
+  state: AppState = {
+    currentNode: null,
+    currentTheme: 'Light',
+    imjoy: null,
+    idCounter: 0,
   };
 
   async componentDidMount() {
@@ -70,53 +66,63 @@ export class App extends React.PureComponent<{}, ExampleAppState> {
 
       imjoy.event_bus.on("add_window", (win: any) => {
         // Create mosaic window
-        const winId = this.addToTopRight()
-        const mosaicContainer = document.getElementById(`win-${winId}`)
-        if (mosaicContainer) {
-          mosaicContainer.id = win.window_id; // <--- this is important
-        }
+        const winId = this.addWindow()
+        // wait for the window to be created
+        const intervalId = setInterval(() => {
+          const mosaicContainer = document.getElementById(`win-${winId}`);
+          if (mosaicContainer) {
+            mosaicContainer.id = win.window_id; // <--- this is important
+            clearInterval(intervalId)
+          }
+        }, 500)
       })
-      await imjoy.api.createWindow({src: "https://kaibu.org"})
+      //await imjoy.api.createWindow({src: "https://kaibu.org"})
     })
   }
 
-  addToTopRight(){
+  private addWindow = (position: NewWindowPosition = "right") => {
     let { currentNode } = this.state;
-    const totalWindowCount = getLeaves(currentNode).length;
-    if (currentNode) {
-      const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
-      const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<number>;
-      const destination = getNodeAtPath(currentNode, path) as MosaicNode<number>;
-      const direction: MosaicDirection = parent ? getOtherDirection(parent.direction) : 'row';
-
-      let first: MosaicNode<number>;
-      let second: MosaicNode<number>;
-      if (direction === 'row') {
-        first = destination;
-        second = totalWindowCount + 1;
-      } else {
-        first = totalWindowCount + 1;
-        second = destination;
-      }
-
-      currentNode = updateTree(currentNode, [
-        {
-          path,
-          spec: {
-            $set: {
-              direction,
-              first,
-              second,
-            },
-          },
-        },
-      ]);
+    if (currentNode === null) {
+      this.setState({ currentNode: 0, idCounter: 0 });
+      return 0;
+    }
+    const { idCounter } = this.state;
+    const totalWindowCount = idCounter + 1;
+    const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
+    const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<number>;
+    const destination = getNodeAtPath(currentNode, path) as MosaicNode<number>;
+    let direction: MosaicDirection
+    if (position === "topRight") {
+      direction = parent ? getOtherDirection(parent.direction) : 'row';
     } else {
-      currentNode = totalWindowCount;
+      direction = "row"
     }
 
-    this.setState({ currentNode });
-    return totalWindowCount;
+    let first: MosaicNode<number>;
+    let second: MosaicNode<number>;
+    if (direction === 'row') {
+      first = destination;
+      second = totalWindowCount + 1;
+    } else {
+      first = totalWindowCount + 1;
+      second = destination;
+    }
+
+    currentNode = updateTree(currentNode, [
+      {
+        path,
+        spec: {
+          $set: {
+            direction,
+            first,
+            second,
+          },
+        },
+      },
+    ]);
+
+    this.setState({ currentNode, idCounter: totalWindowCount});
+    return totalWindowCount + 1;
   };
 
   render() {
@@ -128,9 +134,9 @@ export class App extends React.PureComponent<{}, ExampleAppState> {
           {this.renderNavBar()}
           <Mosaic<number>
             renderTile={(count, path) => (
-              <ExampleWindow count={count} path={path} totalWindowCount={totalWindowCount} />
+              <Window count={count} path={path} totalWindowCount={totalWindowCount} />
             )}
-            zeroStateView={<MosaicZeroState createNode={() => totalWindowCount + 1} />}
+            zeroStateView={<MosaicZeroState createNode={this.addWindow} />}
             value={this.state.currentNode}
             onChange={this.onChange}
             onRelease={this.onRelease}
@@ -170,7 +176,7 @@ export class App extends React.PureComponent<{}, ExampleAppState> {
             Theme:
             <HTMLSelect
               value={this.state.currentTheme}
-              onChange={(e: any) => this.setState({ currentTheme: e.currentTarget.value as Theme })}
+              onChange={(e) => this.setState({ currentTheme: e.currentTarget.value as Theme })}
             >
               {React.Children.toArray(Object.keys(THEMES).map((label) => <option>{label}</option>))}
             </HTMLSelect>
@@ -185,9 +191,9 @@ export class App extends React.PureComponent<{}, ExampleAppState> {
           </button>
           <button
             className={classNames(Classes.BUTTON, Classes.iconClass(IconNames.ARROW_TOP_RIGHT))}
-            onClick={this.addToTopRight}
+            onClick={() => {this.addWindow()}}
           >
-            Add Window to Top Right
+            Add Window
           </button>
         </div>
       </div>
@@ -195,26 +201,3 @@ export class App extends React.PureComponent<{}, ExampleAppState> {
   }
 }
 
-interface ExampleWindowProps {
-  count: number;
-  path: MosaicBranch[];
-  totalWindowCount: number;
-}
-
-const ExampleWindow = ({ count, path, totalWindowCount }: ExampleWindowProps) => {
-
-  return (
-    <MosaicWindow<number>
-      title={`Window ${count}`}
-      createNode={() => totalWindowCount + 1}
-      path={path}
-      onDragStart={() => console.log('MosaicWindow.onDragStart')}
-      onDragEnd={(type) => console.log('MosaicWindow.onDragEnd', type)}
-    >
-      <div className="example-window" style={{padding: 0}}>
-        <div id={`win-${count}`} style={{"height": "100%", "width": "100%"}}>
-        </div>
-      </div>
-    </MosaicWindow>
-  );
-};
