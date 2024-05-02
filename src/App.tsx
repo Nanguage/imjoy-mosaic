@@ -11,6 +11,7 @@ import 'react-mosaic-component/styles/index.less';
 import './carbon.less';
 import './app.less';
 import { Window } from './Window';
+import { useStore } from './store';
 
 import {
   Corner,
@@ -33,19 +34,18 @@ export const THEMES = {
   ['Dark']: classNames('mosaic-blueprint-theme', Classes.DARK),
 };
 
-
 type Theme = keyof typeof THEMES;
-
 
 type NewWindowPosition = "right" | "topRight"
 
+type NodeType = number;
+
 
 interface AppState {
-  currentNode: MosaicNode<number> | null;
+  currentNode: MosaicNode<NodeType> | null;
   currentTheme: Theme;
   imjoy: any;
   idCounter: number;
-  id2props: {[key: number]: any}
 }
 
 
@@ -55,7 +55,6 @@ export class App extends React.PureComponent<object, AppState> {
     currentTheme: 'Dark',
     imjoy: null,
     idCounter: 0,
-    id2props: {}
   };
 
   async componentDidMount() {
@@ -74,6 +73,7 @@ export class App extends React.PureComponent<object, AppState> {
           const mosaicContainer = document.getElementById(`win-${winId}`);
           if (mosaicContainer) {
             mosaicContainer.id = win.window_id; // <--- this is important
+            console.log('Imjoy window created:', win)
             clearInterval(intervalId)
           }
         }, 500)
@@ -102,8 +102,8 @@ export class App extends React.PureComponent<object, AppState> {
       return newId;
     }
     const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
-    const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<number>;
-    const destination = getNodeAtPath(currentNode, path) as MosaicNode<number>;
+    const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<NodeType>;
+    const destination = getNodeAtPath(currentNode, path) as MosaicNode<NodeType>;
     let direction: MosaicDirection
     if (position === "topRight") {
       direction = parent ? getOtherDirection(parent.direction) : 'row';
@@ -111,8 +111,8 @@ export class App extends React.PureComponent<object, AppState> {
       direction = "row"
     }
 
-    let first: MosaicNode<number>;
-    let second: MosaicNode<number>;
+    let first: MosaicNode<NodeType>;
+    let second: MosaicNode<NodeType>;
     if (direction === 'row') {
       first = destination;
       second = newId;
@@ -144,10 +144,13 @@ export class App extends React.PureComponent<object, AppState> {
       <React.StrictMode>
         <div className="react-mosaic-example-app">
           {this.renderNavBar()}
-          <Mosaic<number>
-            renderTile={(id, path) => (
-              <Window id={id} path={path} />
-            )}
+          <Mosaic<NodeType>
+            renderTile={(id, path) => {
+              const title = `Window ${id}`
+              return (
+                <Window id={id} path={path} title={title} />
+              )
+            }}
             zeroStateView={<MosaicZeroState createNode={this.addWindow} />}
             value={this.state.currentNode}
             onChange={this.onChange}
@@ -160,11 +163,11 @@ export class App extends React.PureComponent<object, AppState> {
     );
   }
 
-  private onChange = (currentNode: MosaicNode<number> | null) => {
+  private onChange = (currentNode: MosaicNode<NodeType> | null) => {
     this.setState({ currentNode });
   };
 
-  private onRelease = (currentNode: MosaicNode<number> | null) => {
+  private onRelease = (currentNode: MosaicNode<NodeType> | null) => {
     console.log('Mosaic.onRelease():', currentNode);
   };
 

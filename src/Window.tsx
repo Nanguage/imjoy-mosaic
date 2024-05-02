@@ -10,7 +10,7 @@ import {
 interface WindowProps {
   id: number;
   path: MosaicBranch[];
-  totalWindowCount: number;
+  title: string;
 }
 
 const ToolbarControls = React.Children.toArray([
@@ -20,10 +20,10 @@ const ToolbarControls = React.Children.toArray([
 
 
 
-export const Window = ({ id, path }: WindowProps) => {
+export const Window = ({ id, path, title }: WindowProps) => {
   return (
     <MosaicWindow<number>
-      title={`Window ${id}`}
+      title={title}
       path={path}
       onDragStart={() => console.log('MosaicWindow.onDragStart')}
       onDragEnd={(type) => console.log('MosaicWindow.onDragEnd', type)}
