@@ -2,7 +2,7 @@ import { Classes, HTMLSelect } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
 import dropRight from 'lodash/dropRight';
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import * as imjoyCore from "imjoy-core"
   
 import '@blueprintjs/core/lib/css/blueprint.css';
@@ -29,7 +29,7 @@ import {
 } from 'react-mosaic-component';
 
 
-export const THEMES = {
+const THEMES = {
   ['Light']: 'mosaic-blueprint-theme',
   ['Dark']: classNames('mosaic-blueprint-theme', Classes.DARK),
 };
@@ -41,69 +41,26 @@ type NewWindowPosition = "right" | "topRight"
 type NodeType = number;
 
 
-interface AppState {
-  currentNode: MosaicNode<NodeType> | null;
-  currentTheme: Theme;
-  imjoy: any;
-  idCounter: number;
-}
+export const App = () => {
+  const [currentNode, setCurrentNode] = useState<MosaicNode<NodeType> | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<Theme>('Dark');
+  const [imjoy, setImjoy] = useState<any>(null);
+  const [idCounter, setIdCounter] = useState<number>(0);
 
+  const { setWindowId2name } = useStore()
 
-export class App extends React.PureComponent<object, AppState> {
-  state: AppState = {
-    currentNode: null,
-    currentTheme: 'Dark',
-    imjoy: null,
-    idCounter: 0,
-  };
-
-  async componentDidMount() {
-    const imjoy = new imjoyCore.ImJoy({
-      imjoy_api: {},
-      //imjoy config
-    });
-
-    imjoy.start({workspace: 'default'}).then(async ()=>{
-
-      imjoy.event_bus.on("add_window", (win: any) => {
-        // Create mosaic window
-        const winId = this.addWindow()
-        // wait for the window to be created
-        const intervalId = setInterval(() => {
-          const mosaicContainer = document.getElementById(`win-${winId}`);
-          if (mosaicContainer) {
-            mosaicContainer.id = win.window_id; // <--- this is important
-            console.log('Imjoy window created:', win)
-            clearInterval(intervalId)
-          }
-        }, 500)
-      })
-
-      this.setState({imjoy})
-    })
-  }
-
-  private newImjoyWindow = async () => {
-    const imjoy = this.state.imjoy
-    if(!imjoy) return
-    // Let user input the plugin url
-    const pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
-    const win = await imjoy.api.createWindow({src: pluginUrl})
-    console.log('new window:', win)
-  }
-
-  private addWindow = (position: NewWindowPosition = "right") => {
-    let { currentNode } = this.state;
-    const { idCounter } = this.state;
+  const addWindow = (position: NewWindowPosition = "right") => {
+    let current = currentNode;
     const newId = idCounter + 1;
-    console.log('Adding window', idCounter + 1);
-    if (currentNode === null) {
-      this.setState({ currentNode: newId, idCounter: newId});
+    console.log('Adding window', newId);
+    if (current === null) {
+      setCurrentNode(newId);
+      setIdCounter(newId);
       return newId;
     }
-    const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
-    const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<NodeType>;
-    const destination = getNodeAtPath(currentNode, path) as MosaicNode<NodeType>;
+    const path = getPathToCorner(current, Corner.TOP_RIGHT);
+    const parent = getNodeAtPath(current, dropRight(path)) as MosaicParent<NodeType>;
+    const destination = getNodeAtPath(current, path) as MosaicNode<NodeType>;
     let direction: MosaicDirection
     if (position === "topRight") {
       direction = parent ? getOtherDirection(parent.direction) : 'row';
@@ -121,7 +78,7 @@ export class App extends React.PureComponent<object, AppState> {
       second = destination;
     }
 
-    currentNode = updateTree(currentNode, [
+    current = updateTree(current, [
       {
         path,
         spec: {
@@ -134,52 +91,68 @@ export class App extends React.PureComponent<object, AppState> {
       },
     ]);
 
-    this.setState({ currentNode, idCounter: newId});
+    setCurrentNode(current);
+    setIdCounter(newId);
     return newId;
   };
 
-  render() {
 
-    return (
-      <React.StrictMode>
-        <div className="react-mosaic-example-app">
-          {this.renderNavBar()}
-          <Mosaic<NodeType>
-            renderTile={(id, path) => {
-              const title = `Window ${id}`
-              return (
-                <Window id={id} path={path} title={title} />
-              )
-            }}
-            zeroStateView={<MosaicZeroState createNode={this.addWindow} />}
-            value={this.state.currentNode}
-            onChange={this.onChange}
-            onRelease={this.onRelease}
-            className={THEMES[this.state.currentTheme]}
-            blueprintNamespace="bp5"
-          />
-        </div>
-      </React.StrictMode>
-    );
-  }
+  const newImjoyWindow = React.useCallback(async () => {
+    if(!imjoy) return
+    // Let user input the plugin url
+    const pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
+    const win = await imjoy.api.createWindow({src: pluginUrl})
+    console.log('new window:', win)
+  }, [imjoy])
 
-  private onChange = (currentNode: MosaicNode<NodeType> | null) => {
-    this.setState({ currentNode });
-  };
-
-  private onRelease = (currentNode: MosaicNode<NodeType> | null) => {
-    console.log('Mosaic.onRelease():', currentNode);
-  };
-
-  private autoArrange = () => {
-    const leaves = getLeaves(this.state.currentNode);
-
-    this.setState({
-      currentNode: createBalancedTreeFromLeaves(leaves),
+  useEffect(() => {
+    const imjoy = new imjoyCore.ImJoy({
+      imjoy_api: {},
+      //imjoy config
     });
+    setImjoy(imjoy);
+  }, []);
+
+  useEffect(() => {
+    if (imjoy) {
+      imjoy.start({workspace: 'default'}).then(async ()=>{
+
+        imjoy.event_bus.on("add_window", (win: any) => {
+          // Create mosaic window
+          const winId = addWindow()
+          console.log(winId)
+          // wait for the window to be created
+          const intervalId = setInterval(() => {
+            const mosaicContainer = document.getElementById(`win-${winId}`);
+            if (mosaicContainer) {
+              mosaicContainer.id = win.window_id; // <--- this is important
+              console.log('Imjoy window created:', win)
+              setWindowId2name(winId, win.name)
+              clearInterval(intervalId)
+            }
+          }, 500)
+        })
+
+      })
+    }
+
+  }, [imjoy]);
+
+  const onChange = (current: MosaicNode<NodeType> | null) => {
+    setCurrentNode(current);
   };
 
-  private renderNavBar() {
+  const onRelease = (current: MosaicNode<NodeType> | null) => {
+    console.log('Mosaic.onRelease():', current);
+  };
+
+  const autoArrange = () => {
+    const leaves = getLeaves(currentNode);
+
+    setCurrentNode(createBalancedTreeFromLeaves(leaves));
+  };
+
+  const renderNavBar = () => {
     return (
       <div className={classNames(Classes.NAVBAR, Classes.DARK)}>
         <div className={Classes.NAVBAR_GROUP}>
@@ -191,8 +164,8 @@ export class App extends React.PureComponent<object, AppState> {
           <label className={classNames('theme-selection', Classes.LABEL, Classes.INLINE)}>
             Theme:
             <HTMLSelect
-              value={this.state.currentTheme}
-              onChange={(e) => this.setState({ currentTheme: e.currentTarget.value as Theme })}
+              value={currentTheme}
+              onChange={(e) => setCurrentTheme(e.currentTarget.value as Theme)}
             >
               {React.Children.toArray(Object.keys(THEMES).map((label) => <option>{label}</option>))}
             </HTMLSelect>
@@ -201,13 +174,13 @@ export class App extends React.PureComponent<object, AppState> {
           <span className="actions-label">Actions:</span>
           <button
             className={classNames(Classes.BUTTON, Classes.iconClass(IconNames.GRID_VIEW))}
-            onClick={this.autoArrange}
+            onClick={autoArrange}
           >
             Auto Arrange
           </button>
           <button
             className={classNames(Classes.BUTTON, Classes.iconClass(IconNames.ARROW_TOP_RIGHT))}
-            onClick={() => {this.newImjoyWindow()}}
+            onClick={newImjoyWindow}
           >
             Add Window
           </button>
@@ -215,5 +188,25 @@ export class App extends React.PureComponent<object, AppState> {
       </div>
     );
   }
-}
 
+  return (
+    <React.StrictMode>
+      <div className="react-mosaic-example-app">
+        {renderNavBar()}
+        <Mosaic<NodeType>
+          renderTile={(id, path) => {
+            return (
+              <Window id={id} path={path} />
+            )
+          }}
+          zeroStateView={<MosaicZeroState createNode={addWindow} />}
+          value={currentNode}
+          onChange={onChange}
+          onRelease={onRelease}
+          className={THEMES[currentTheme]}
+          blueprintNamespace="bp5"
+        />
+      </div>
+    </React.StrictMode>
+  );
+}

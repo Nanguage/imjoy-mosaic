@@ -5,12 +5,12 @@ import {
   ExpandButton,
   RemoveButton,
 } from 'react-mosaic-component';
+import { useStore } from './store';
 
 
 interface WindowProps {
   id: number;
   path: MosaicBranch[];
-  title: string;
 }
 
 const ToolbarControls = React.Children.toArray([
@@ -20,7 +20,13 @@ const ToolbarControls = React.Children.toArray([
 
 
 
-export const Window = ({ id, path, title }: WindowProps) => {
+export const Window = ({ id, path }: WindowProps) => {
+  const { windowId2name } = useStore();
+
+  let title = `Window ${id}`;
+  if (windowId2name[id]) {
+    title = windowId2name[id];
+  }
   return (
     <MosaicWindow<number>
       title={title}
