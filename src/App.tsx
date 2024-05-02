@@ -43,17 +43,19 @@ type NewWindowPosition = "right" | "topRight"
 interface AppState {
   currentNode: MosaicNode<number> | null;
   currentTheme: Theme;
-  imjoy: object | null;
+  imjoy: any;
   idCounter: number;
+  id2props: {[key: number]: any}
 }
 
 
 export class App extends React.PureComponent<object, AppState> {
   state: AppState = {
     currentNode: null,
-    currentTheme: 'Light',
+    currentTheme: 'Dark',
     imjoy: null,
     idCounter: 0,
+    id2props: {}
   };
 
   async componentDidMount() {
@@ -76,18 +78,29 @@ export class App extends React.PureComponent<object, AppState> {
           }
         }, 500)
       })
-      //await imjoy.api.createWindow({src: "https://kaibu.org"})
+
+      this.setState({imjoy})
     })
+  }
+
+  private newImjoyWindow = async () => {
+    const imjoy = this.state.imjoy
+    if(!imjoy) return
+    // Let user input the plugin url
+    const pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
+    const win = await imjoy.api.createWindow({src: pluginUrl})
+    console.log('new window:', win)
   }
 
   private addWindow = (position: NewWindowPosition = "right") => {
     let { currentNode } = this.state;
-    if (currentNode === null) {
-      this.setState({ currentNode: 0, idCounter: 0 });
-      return 0;
-    }
     const { idCounter } = this.state;
-    const totalWindowCount = idCounter + 1;
+    const newId = idCounter + 1;
+    console.log('Adding window', idCounter + 1);
+    if (currentNode === null) {
+      this.setState({ currentNode: newId, idCounter: newId});
+      return newId;
+    }
     const path = getPathToCorner(currentNode, Corner.TOP_RIGHT);
     const parent = getNodeAtPath(currentNode, dropRight(path)) as MosaicParent<number>;
     const destination = getNodeAtPath(currentNode, path) as MosaicNode<number>;
@@ -102,9 +115,9 @@ export class App extends React.PureComponent<object, AppState> {
     let second: MosaicNode<number>;
     if (direction === 'row') {
       first = destination;
-      second = totalWindowCount + 1;
+      second = newId;
     } else {
-      first = totalWindowCount + 1;
+      first = newId;
       second = destination;
     }
 
@@ -121,20 +134,19 @@ export class App extends React.PureComponent<object, AppState> {
       },
     ]);
 
-    this.setState({ currentNode, idCounter: totalWindowCount});
-    return totalWindowCount + 1;
+    this.setState({ currentNode, idCounter: newId});
+    return newId;
   };
 
   render() {
 
-    const totalWindowCount = getLeaves(this.state.currentNode).length;
     return (
       <React.StrictMode>
         <div className="react-mosaic-example-app">
           {this.renderNavBar()}
           <Mosaic<number>
-            renderTile={(count, path) => (
-              <Window count={count} path={path} totalWindowCount={totalWindowCount} />
+            renderTile={(id, path) => (
+              <Window id={id} path={path} />
             )}
             zeroStateView={<MosaicZeroState createNode={this.addWindow} />}
             value={this.state.currentNode}
@@ -169,6 +181,7 @@ export class App extends React.PureComponent<object, AppState> {
       <div className={classNames(Classes.NAVBAR, Classes.DARK)}>
         <div className={Classes.NAVBAR_GROUP}>
           <div className={Classes.NAVBAR_HEADING}>
+            ImJoy Mosaic
           </div>
         </div>
         <div className={classNames(Classes.NAVBAR_GROUP, Classes.BUTTON_GROUP)}>
@@ -182,7 +195,7 @@ export class App extends React.PureComponent<object, AppState> {
             </HTMLSelect>
           </label>
           <div className="navbar-separator" />
-          <span className="actions-label">Example Actions:</span>
+          <span className="actions-label">Actions:</span>
           <button
             className={classNames(Classes.BUTTON, Classes.iconClass(IconNames.GRID_VIEW))}
             onClick={this.autoArrange}
@@ -191,7 +204,7 @@ export class App extends React.PureComponent<object, AppState> {
           </button>
           <button
             className={classNames(Classes.BUTTON, Classes.iconClass(IconNames.ARROW_TOP_RIGHT))}
-            onClick={() => {this.addWindow()}}
+            onClick={() => {this.newImjoyWindow()}}
           >
             Add Window
           </button>
