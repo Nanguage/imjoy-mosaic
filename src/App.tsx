@@ -49,10 +49,9 @@ export const App = () => {
 
   const { setWindowId2name } = useStore()
 
-  const addWindow = (position: NewWindowPosition = "right") => {
+  const addWindow = React.useCallback((position: NewWindowPosition = "right") => {
     let current = currentNode;
     const newId = idCounter + 1;
-    console.log('Adding window', newId);
     if (current === null) {
       setCurrentNode(newId);
       setIdCounter(newId);
@@ -94,14 +93,14 @@ export const App = () => {
     setCurrentNode(current);
     setIdCounter(newId);
     return newId;
-  };
+  }, [currentNode, idCounter, setCurrentNode, setIdCounter]);
 
 
   const newImjoyWindow = React.useCallback(async () => {
     if(!imjoy) return
     // Let user input the plugin url
     const pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
-    const win = await imjoy.api.createWindow({src: pluginUrl})
+    const win = await imjoy.api.loadPlugin({src: pluginUrl})
     console.log('new window:', win)
   }, [imjoy])
 
@@ -110,33 +109,30 @@ export const App = () => {
       imjoy_api: {},
       //imjoy config
     });
-    setImjoy(imjoy);
+    imjoy.start().then(() => {
+      setImjoy(imjoy);
+    });
   }, []);
 
   useEffect(() => {
     if (imjoy) {
-      imjoy.start({workspace: 'default'}).then(async ()=>{
-
-        imjoy.event_bus.on("add_window", (win: any) => {
-          // Create mosaic window
-          const winId = addWindow()
-          console.log(winId)
-          // wait for the window to be created
-          const intervalId = setInterval(() => {
-            const mosaicContainer = document.getElementById(`win-${winId}`);
-            if (mosaicContainer) {
-              mosaicContainer.id = win.window_id; // <--- this is important
-              console.log('Imjoy window created:', win)
-              setWindowId2name(winId, win.name)
-              clearInterval(intervalId)
-            }
-          }, 500)
-        })
-
+      imjoy.event_bus.on("add_window", (win: any) => {
+        // Create mosaic window
+        const winId = addWindow()
+        // wait for the window to be created
+        const intervalId = setInterval(() => {
+          const mosaicContainer = document.getElementById(`win-${winId}`);
+          if (mosaicContainer) {
+            mosaicContainer.id = win.window_id; // <--- this is important
+            console.log('Imjoy window created:', win)
+            setWindowId2name(winId, win.name)
+            clearInterval(intervalId)
+          }
+        }, 500)
       })
     }
 
-  }, [imjoy]);
+  }, [imjoy, addWindow, setWindowId2name]);
 
   const onChange = (current: MosaicNode<NodeType> | null) => {
     setCurrentNode(current);

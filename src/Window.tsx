@@ -35,7 +35,7 @@ export const Window = ({ id, path }: WindowProps) => {
       onDragEnd={(type) => console.log('MosaicWindow.onDragEnd', type)}
       toolbarControls={ToolbarControls}
     >
-      <div className="example-window" style={{padding: 0}}>
+      <div className="example-window" style={{padding: 5}}>
         <div id={`win-${id}`} style={{"height": "100%", "width": "100%"}}>
         </div>
       </div>
