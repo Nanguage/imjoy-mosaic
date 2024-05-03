@@ -100,8 +100,9 @@ export const App = () => {
     if(!imjoy) return
     // Let user input the plugin url
     const pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
-    const win = await imjoy.api.loadPlugin({src: pluginUrl})
-    console.log('new window:', win)
+    const plugin = await imjoy.api.loadPlugin({src: pluginUrl})
+    await plugin.run()
+    console.log('new plugin:', plugin)
   }, [imjoy])
 
   useEffect(() => {
