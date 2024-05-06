@@ -1,4 +1,5 @@
 import { Classes, HTMLSelect } from '@blueprintjs/core';
+import { Overlay2, OverlaysProvider } from "@blueprintjs/core"; 
 import { IconNames } from '@blueprintjs/icons';
 import classNames from 'classnames';
 import dropRight from 'lodash/dropRight';
@@ -12,6 +13,7 @@ import './carbon.less';
 import './app.less';
 import { Window } from './Window';
 import { useStore } from './store';
+
 
 import {
   Corner,
@@ -46,10 +48,12 @@ export const App = () => {
   const [currentTheme, setCurrentTheme] = useState<Theme>('Dark');
   const [imjoy, setImjoy] = useState<any>(null);
   const [idCounter, setIdCounter] = useState<number>(0);
+  const [Loading, setLoading] = useState<boolean>(false);
+  const [initRun, setInitRun] = useState<boolean>(false);
 
-  const { setWindowId2name } = useStore()
+  const { setWindowId2name, title } = useStore()
 
-  const addWindow = React.useCallback((position: NewWindowPosition = "right") => {
+  const addWindow = React.useCallback((position: NewWindowPosition = "topRight") => {
     let current = currentNode;
     const newId = idCounter + 1;
     if (current === null) {
@@ -96,22 +100,35 @@ export const App = () => {
   }, [currentNode, idCounter, setCurrentNode, setIdCounter]);
 
 
-  const newImjoyWindow = React.useCallback(async () => {
-    if(!imjoy) return
-    // Let user input the plugin url
-    const pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
-    const plugin = await imjoy.api.loadPlugin({src: pluginUrl})
-    await plugin.run()
-    console.log('new plugin:', plugin)
+  const newImjoyWindow = React.useCallback(async (pluginUrl: string | null = null) => {
+    if (imjoy) {
+      // Let user input the plugin url
+      if (!pluginUrl) {
+        pluginUrl = prompt("Please enter the plugin url", "https://kaibu.org");
+      }
+      try {
+        const plugin = await imjoy.api.loadPlugin({src: pluginUrl})
+        await plugin.run()
+        console.log('new plugin:', plugin)
+      } catch (e) {
+        console.error(e)
+      }
+    } else {
+      setTimeout(() => {
+        newImjoyWindow(pluginUrl)
+      }, 1000)
+    }
   }, [imjoy])
 
   useEffect(() => {
-    const imjoy = new imjoyCore.ImJoy({
+    setLoading(true)
+    const imjoy_ = new imjoyCore.ImJoy({
       imjoy_api: {},
       //imjoy config
     });
-    imjoy.start().then(() => {
-      setImjoy(imjoy);
+    imjoy_.start().then(() => {
+      setImjoy(imjoy_);
+      setLoading(false)
     });
   }, []);
 
@@ -131,9 +148,20 @@ export const App = () => {
           }
         }, 500)
       })
+
+      if (!initRun) {
+        setInitRun(true)
+        // get parameter from the url
+        const urlParams = new URLSearchParams(window.location.search);
+        const pluginUrl = urlParams.get('plugin');
+        console.log('pluginUrl:', pluginUrl)
+        if (pluginUrl) {
+          newImjoyWindow(pluginUrl)
+        }
+      }
     }
 
-  }, [imjoy, addWindow, setWindowId2name]);
+  }, [imjoy, addWindow, setWindowId2name, newImjoyWindow, initRun]);
 
   const onChange = (current: MosaicNode<NodeType> | null) => {
     setCurrentNode(current);
@@ -154,7 +182,7 @@ export const App = () => {
       <div className={classNames(Classes.NAVBAR, Classes.DARK)}>
         <div className={Classes.NAVBAR_GROUP}>
           <div className={Classes.NAVBAR_HEADING}>
-            ImJoy Mosaic
+            {title}
           </div>
         </div>
         <div className={classNames(Classes.NAVBAR_GROUP, Classes.BUTTON_GROUP)}>
@@ -177,7 +205,9 @@ export const App = () => {
           </button>
           <button
             className={classNames(Classes.BUTTON, Classes.iconClass(IconNames.ARROW_TOP_RIGHT))}
-            onClick={newImjoyWindow}
+            onClick={() => {
+              newImjoyWindow(null)
+            }}
           >
             Add Window
           </button>
@@ -196,13 +226,18 @@ export const App = () => {
               <Window id={id} path={path} />
             )
           }}
-          zeroStateView={<MosaicZeroState createNode={addWindow} />}
+          zeroStateView={<MosaicZeroState/>}
           value={currentNode}
           onChange={onChange}
           onRelease={onRelease}
           className={THEMES[currentTheme]}
           blueprintNamespace="bp5"
         />
+        <OverlaysProvider>
+          <Overlay2 isOpen={Loading} className='overlay2'>
+            <div className="loading-animation"></div>
+          </Overlay2>
+        </OverlaysProvider>
       </div>
     </React.StrictMode>
   );
