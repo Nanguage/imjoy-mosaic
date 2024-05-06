@@ -51,7 +51,7 @@ export const App = () => {
   const [Loading, setLoading] = useState<boolean>(false);
   const [initRun, setInitRun] = useState<boolean>(false);
 
-  const { setWindowId2name, title } = useStore()
+  const { setWindowId2name, title, setTitle } = useStore()
 
   const addWindow = React.useCallback((position: NewWindowPosition = "topRight") => {
     let current = currentNode;
@@ -158,10 +158,14 @@ export const App = () => {
         if (pluginUrl) {
           newImjoyWindow(pluginUrl)
         }
+        const title = urlParams.get('title');
+        if (title) {
+          setTitle(title)
+        }
       }
     }
 
-  }, [imjoy, addWindow, setWindowId2name, newImjoyWindow, initRun]);
+  }, [imjoy, addWindow, setWindowId2name, newImjoyWindow, initRun, setTitle]);
 
   const onChange = (current: MosaicNode<NodeType> | null) => {
     setCurrentNode(current);
