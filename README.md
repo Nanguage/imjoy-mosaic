@@ -1,5 +1,13 @@
 # ImJoy Mosaic
 
+Online instance: [https://nanguage.github.io/imjoy-mosaic/](https://nanguage.github.io/imjoy-mosaic/)
+
+![demo](./demo1.png)
+
+Set initial plugin via URL parameter `plugin` (e.g. `https://nanguage.github.io/imjoy-mosaic/?plugin=https://ufish-team.github.io/plugins/chatbot-extension.imjoy.html`)
+
+Set title via URL parameter `title` (e.g. `https://nanguage.github.io/imjoy-mosaic/?title=My%20Mosaic`)
+
 ## Development
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
